@@ -9,6 +9,7 @@ class Datatables {
     protected $select = array();
     protected $order = array();
     protected $joins = array();
+    protected $where = array();
 
     public function __construct()
     {
@@ -66,9 +67,14 @@ class Datatables {
         $this->joins[] = array($table, $fk, $type);
     }
 
-    public function where($key_condition, $val = NULL, $backtick_protect = TRUE)
+    public function where($key_condition, $val = NULL)
     {
-        $this->CI->db->where($key_condition, $val, $backtick_protect);
+        $this->where[] = array($key_condition, $val, 'and');
+    }
+
+    public function or_where($key_condition, $val = NULL)
+    {
+        $this->where[$key_condition] = array($val, 'or');
     }
 
     public function order_by($ordering = array())
@@ -86,6 +92,17 @@ class Datatables {
         if(!empty($this->joins))
             foreach($this->joins as $val)
                 $this->CI->db->join($val[0], $val[1], $val[2]);
+
+        if(!empty($this->where)){
+            foreach($this->where as $val){
+                if($val[2] == 'and'){
+                    $this->CI->db->where($val[0],$val[1]);
+                }
+                else{
+                    $this->CI->db->or_where($val[0], $val[1]);
+                }
+            }
+        }
 
         if($searchPost['value']){
             $i = 0;

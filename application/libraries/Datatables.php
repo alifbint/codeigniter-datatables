@@ -74,7 +74,7 @@ class Datatables {
 
     public function or_where($key_condition, $val = NULL)
     {
-        $this->where[$key_condition] = array($val, 'or');
+        $this->where[] = array($key_condition, $val, 'or');
     }
 
     public function order_by($ordering = array())

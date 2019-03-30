@@ -2,6 +2,7 @@
 
 class Datatables {
     protected $CI;
+    protected $csrfEnable = FALSE;
     protected $table;
     protected $column;
     protected $column_order = array(null);
@@ -14,6 +15,7 @@ class Datatables {
     public function __construct()
     {
         $this->CI =& get_instance();
+        $this->csrfEnable = $this->CI->config->item('csrf_protection');
     }
 
     protected function balanceChars($str, $open, $close)
@@ -177,6 +179,9 @@ class Datatables {
                         'recordsFiltered' => $this->count_filtered(),
                         'data' => $data,
                 );
+
+        if($this->csrfEnable)
+            $output['csrf_token'] = $this->CI->security->get_csrf_hash();
 
         header('Content-Type: application/json');
         echo json_encode($output);

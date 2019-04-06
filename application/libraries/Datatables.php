@@ -5,12 +5,11 @@ class Datatables {
     protected $csrfEnable = FALSE;
     protected $table;
     protected $column;
-    protected $column_order = array(null);
     protected $column_search = array();
-    protected $select = array();
     protected $order = array();
     protected $joins = array();
     protected $where = array();
+    protected $query;
 
     public function __construct()
     {
@@ -50,14 +49,11 @@ class Datatables {
 
     public function select($columns)
     {
-        foreach($this->explode(',', $columns) as $val){
-            $column = trim(preg_replace('/(.*)\s+as\s+(\w*)/i', '$1', $val));
-            $this->select[$column] =  trim(preg_replace('/(.*)\s+as\s+(\w*)/i', '$2', $val));
-            $this->column_search[] =  $column;
-            $this->column_order[] = $column;
-        }
-
         $this->column = $columns;
+        $columns = $this->explode(',', $columns);
+        foreach($columns as $val){
+            $this->column_search[] = trim(preg_replace('/(.*)\s+as\s+(\w*)/i', '$1', $val));
+        }
     }
 
     public function from($table){
@@ -79,9 +75,14 @@ class Datatables {
         $this->where[] = array($key_condition, $val, 'or');
     }
 
-    public function order_by($ordering = array())
+    public function order_by($column, $order = 'ASC')
     {
-        $this->order = $ordering;
+        if(is_array($column)){
+            $this->order = $column;
+        }
+        else{
+            $this->order[$column] = $order;
+        }
     }
 
     protected function _get_datatables_query()
@@ -124,13 +125,14 @@ class Datatables {
             }
         }
 
+        $this->query = $this->CI->db->get_compiled_select($this->table, false);
          
         if(isset($_POST['order'])){
-            $this->CI->db->order_by($this->column_order[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
+            $this->CI->db->order_by($this->column_search[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
         } 
         else if(!empty($this->order)){
-            $order = $this->order;
-            $this->CI->db->order_by(key($order), $order[key($order)]);
+            foreach($this->order as $key => $val)
+                $this->CI->db->order_by($key, $val);
         }
     }
  
@@ -140,21 +142,17 @@ class Datatables {
         if($this->CI->input->post('length',true) != -1)
             $this->CI->db->limit($this->CI->input->post('length',true), $this->CI->input->post('start',true));
         
-        $query = $this->CI->db->get($this->table);
-        return $query->result_array();
+        return $this->CI->db->get()->result_array();
     }
  
     protected function count_filtered()
     {
-        $this->_get_datatables_query();
-        $query = $this->CI->db->get($this->table);
-        return $query->num_rows();
+        return $this->CI->db->query("SELECT COUNT(*) as numrows FROM (".$this->query.") as x")->row_array()['numrows'];
     }
  
     protected function count_all()
     {
-        $query = $this->CI->db->from($this->table);
-        return $query->count_all_results();
+        return $this->CI->db->from($this->table)->count_all_results();
     }
 
     public function generate()
@@ -164,13 +162,8 @@ class Datatables {
         $no = $this->CI->input->post('start',true);
         foreach ($list as $val) {
             $no++;
-            $row = array();
-            $row['no'] = $no;
-            foreach($this->select as $sele){
-                $row[$sele] = $val[$sele];
-            }
- 
-            $data[] = $row;
+            $val['no'] = $no;
+            $data[] = $val;
         }
  
         $output = array(

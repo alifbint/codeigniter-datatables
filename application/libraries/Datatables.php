@@ -9,7 +9,7 @@ class Datatables {
     protected $order = array();
     protected $joins = array();
     protected $where = array();
-    protected $query;
+    protected $queryCount;
 
     public function __construct()
     {
@@ -107,6 +107,8 @@ class Datatables {
             }
         }
 
+        $tmpQueryCount = preg_replace("/SELECT\s(([A-Za-z_0-1,`.]+)\s)*FROM/", "SELECT COUNT(*) FROM", $this->CI->db->get_compiled_select($this->table, false));
+
         if($searchPost['value']){
             $i = 0;
             foreach ($this->column_search as $item){
@@ -125,7 +127,7 @@ class Datatables {
             }
         }
 
-        $this->query = $this->CI->db->get_compiled_select($this->table, false);
+        $this->queryCount = preg_replace("/SELECT\s(([A-Za-z_0-1,`.]+)\s)*FROM/", "SELECT (".$tmpQueryCount.") as total_all, COUNT(*) as total_filtered FROM", $this->CI->db->get_compiled_select('', false));
          
         if(isset($_POST['order'])){
             $this->CI->db->order_by($this->column_search[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
@@ -145,32 +147,29 @@ class Datatables {
         return $this->CI->db->get()->result_array();
     }
  
-    protected function count_filtered()
+    protected function count_total()
     {
-        return $this->CI->db->query("SELECT COUNT(*) as numrows FROM (".$this->query.") as x")->row_array()['numrows'];
-    }
- 
-    protected function count_all()
-    {
-        return $this->CI->db->from($this->table)->count_all_results();
+        return $this->CI->db->query($this->queryCount)->row_array();
     }
 
     public function generate()
     {
         $list = $this->get_datatables();
+        $total = $this->count_total();
         $data = array();
         $no = $this->CI->input->post('start',true);
+
         foreach ($list as $val) {
             $no++;
             $val['no'] = $no;
             $data[] = $val;
         }
- 
+
         $output = array(
-                        'draw' => $this->CI->input->post('draw',true),
-                        'recordsTotal' => $this->count_all(),
-                        'recordsFiltered' => $this->count_filtered(),
-                        'data' => $data,
+                    'draw' => $this->CI->input->post('draw',true),
+                    'recordsTotal' => $total['total_all'],
+                    'recordsFiltered' => $total['total_filtered'],
+                    'data' => $data
                 );
 
         if($this->csrfEnable)

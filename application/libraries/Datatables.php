@@ -2,19 +2,22 @@
 
 class Datatables {
     protected $CI;
-    protected $csrfEnable = FALSE;
-    protected $table;
-    protected $column;
-    protected $column_search = array();
-    protected $order = array();
-    protected $joins = array();
-    protected $where = array();
-    protected $queryCount;
+    private $csrfEnable = FALSE;
+    private $table;
+    private $column;
+    private $column_search = array();
+    private $order = array();
+    private $joins = array();
+    private $where = array();
+    private $queryCount;
+    private $type = null;
 
-    public function __construct()
+    public function __construct($config = array())
     {
         $this->CI =& get_instance();
         $this->csrfEnable = $this->CI->config->item('csrf_protection');
+        if(!empty($config['ui_type']))
+            $this->type = $config['ui_type'];
     }
 
     protected function balanceChars($str, $open, $close)
@@ -52,7 +55,10 @@ class Datatables {
         $this->column = $columns;
         $columns = $this->explode(',', $columns);
         foreach($columns as $val){
-            $this->column_search[] = trim(preg_replace('/(.*)\s+as\s+(\w*)/i', '$1', $val));
+            $search = trim(preg_replace('/(.*)\s+as\s+(\w*)/i', '$1', $val));
+            if(strpos($search, "FROM") === FALSE){
+                $this->column_search[] = $search;
+            }
         }
     }
 
@@ -107,7 +113,7 @@ class Datatables {
             }
         }
 
-        $tmpQueryCount = preg_replace("/SELECT\s(([A-Za-z_0-1,`.]+)\s)*FROM/", "SELECT COUNT(*) FROM", $this->CI->db->get_compiled_select($this->table, false));
+        $tmpQueryCount = str_replace($this->column, 'COUNT(1)', str_replace('`', '', $this->CI->db->get_compiled_select($this->table, false)));
 
         if($searchPost['value']){
             $i = 0;
@@ -125,13 +131,17 @@ class Datatables {
 
                 $i++;
             }
+
+            $this->queryCount = str_replace($this->column, '('.$tmpQueryCount.') as total_all, COUNT(1) as total_filtered', str_replace('`', '', $this->CI->db->get_compiled_select('', false)));
+        }
+        else{
+            $this->queryCount = "SELECT COUNT(1) total_all, COUNT(1) total_filtered ".substr($tmpQueryCount, 16);
         }
 
-        $this->queryCount = preg_replace("/SELECT\s(([A-Za-z_0-1,`.]+)\s)*FROM/", "SELECT (".$tmpQueryCount.") as total_all, COUNT(*) as total_filtered FROM", $this->CI->db->get_compiled_select('', false));
          
         if(isset($_POST['order'])){
             $this->CI->db->order_by($this->column_search[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
-        } 
+        }
         else if(!empty($this->order)){
             foreach($this->order as $key => $val)
                 $this->CI->db->order_by($key, $val);
@@ -177,5 +187,227 @@ class Datatables {
 
         header('Content-Type: application/json');
         echo json_encode($output);
+    }
+
+    public function css($type = null)
+    {
+        if(!empty($this->type)){
+            $type = $this->type
+        }
+        else{
+            $this->type = $type;
+        }
+
+        switch($type){
+            case 'bootstrap':
+            case 'bootstrap3':
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/dataTables.bootstrap.min.css">';
+            break;
+
+            case 'bootstrap4':
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/dataTables.bootstrap4.min.css">';
+            break;
+
+            case 'foundation':
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/dataTables.foundation.min.css">';
+            break;
+
+            case 'jquery':
+            case 'jqueryui':
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/dataTables.jqueryui.min.css">';
+            break;
+
+            case 'material':
+            case 'materialui':
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/dataTables.material.min.css">';
+            break;
+
+            case 'semantic':
+            case 'semanticui':
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/dataTables.semanticui.min.css">';
+            break;
+
+            case 'uikit':
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/dataTables.uikit.min.css">';
+            break;
+
+            default:
+                echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/css/jquery.dataTables.min.css">';
+            break;
+        }
+    }
+
+    public function js($type = null)
+    {
+        if(!empty($this->type)){
+            $type = $this->type
+        }
+        else{
+            $this->type = $type;
+        }
+
+        echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/jquery.dataTables.min.js"></script>';
+        switch($type){
+            case 'bootstrap':
+            case 'bootstrap3':
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/dataTables.bootstrap.min.js"></script>'
+            break;
+
+            case 'bootstrap4':
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/dataTables.bootstrap4.min.js"></script>'
+            break;
+
+            case 'foundation':
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/dataTables.foundation.min.js"></script>'
+            break;
+
+            case 'jquery':
+            case 'jqueryui':
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/dataTables.jqueryui.min.js"></script>'
+            break;
+
+            case 'material':
+            case 'materialui':
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/dataTables.material.min.js"></script>'
+            break;
+
+            case 'semantic':
+            case 'semanticui':
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/dataTables.semanticui.min.js"></script>'
+            break;
+
+            case 'uikit':
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.19/js/dataTables.uikit.min.js"></script>'
+            break;
+        }
+    }
+
+    public function generate_js($idDom, $url, $config = array())
+    {
+        echo 'var '.str_replace(array('-','_'), array('',''), $idDom);
+        if($this->csrfEnable)
+            echo 'var csrfData = "'.$this->CI->security->get_csrf_hash().'";';
+        echo '$.fn.dataTable.ext.errMode = "none";';
+        echo '$(document).ready(function(){';
+        echo str_replace(array('-','_'), array('',''), $idDom).' = $("#'.$idDom.'").DataTable({';
+        echo 'processing: true,';
+        echo 'serverSide: true,';
+        echo 'ajax: {';
+        echo 'url: "'.$url.'",';
+        echo 'type: "POST",';
+        if($this->csrfEnable){
+            echo 'data: function(d){';
+            echo 'return $.extend( {}, d, {';
+            echo '"'.$this->CI->security->get_csrf_token_name().'": csrfData';
+            echo '});';
+            echo '},';
+            echo 'dataSrc:function(response) {';
+            echo 'csrfData = response.csrf_token;';
+            echo 'return response.data;';
+            echo '},';
+            echo '},';
+        }
+        echo 'ordering: '.(($config['ordering'])?true:false).',';
+        echo 'searching: '.(($config['searching'])?true:false).',';
+        echo 'pageLength: '.((!empty($config['pageLength']))?$config['pageLength']:25).',';
+        echo 'responsive: '.(($config['responsive'])?true:false).',';
+        echo ((!empty($config['language']))?'language: '.json_encode($config['language']).',':null);
+        if(!empty($config['order'])){
+            $tmpI = 1;
+            echo 'order: [';
+            foreach($config['order'] as $key => $value){
+                if(count($config['order']) == $tmpI){
+                    echo '['.$key.', "'.$value.'"]';
+                }
+                else{
+                    echo '['.$key.', "'.$value.'"],';
+                }
+                $tmpI++;
+            }
+            echo '],';
+        }
+        else{
+            echo 'order: [],';
+        }
+        echo 'columns: [';
+        $tmpI = 1;
+        foreach($config['columns'] as $result){
+            echo '{ ';
+            $tmpJ = 1;
+
+            foreach($result as $key => $val){
+                if(count($result) == $tmpJ){
+                    if($key == 'mRender'){
+                        echo $key.': '.$val;
+                    }
+                    else{
+                        echo $key.': '.((gettype($val) == 'string')?'"'.$val.'"':$val);
+                    }
+                }
+                else{
+                    if($key == 'mRender'){
+                        echo $key.': '.$val.',';
+                    }
+                    else{
+                        echo $key.': '.((gettype($val) == 'string')?'"'.$val.'"':$val).',';
+                    }
+                }
+                $tmpJ++;
+            }
+
+            if(count($config['columns']) == $tmpI){
+                echo ' }';
+            }
+            else{
+                echo ' },';
+            }
+            $tmpI++;
+        }
+        if(!empty($config['columnDefs'])){
+            echo '],';
+            echo 'columnDefs:[';
+            $tmpI = 1;
+            foreach($config['columnDefs'] as $result){
+                echo '{';
+                $tmpJ = 1;
+                foreach($result as $key => $val){
+                    if(count($result) == $tmpJ){
+                        if($key == 'targets'){
+                            echo $key.': ['.$val.']';
+                        }
+                        elseif($key == 'render'){
+                            echo $key.': '.$val;
+                        }
+                        else{
+                            echo $key.': '.((gettype($val) == 'string')?'"'.$val.'"':$val);
+                        }
+                    }
+                    else{
+                        if($key == 'targets'){
+                            echo $key.': ['.$val.'],';
+                        }
+                        elseif($key == 'render'){
+                            echo $key.': '.$val.',';
+                        }
+                        else{
+                            echo $key.': '.((gettype($val) == 'string')?'"'.$val.'"':$val).',';
+                        }
+                    }
+                    $tmpJ++;
+                }
+                if(count($config['columnDefs']) == $tmpI){
+                    echo '}';
+                }
+                else{
+                    echo '},';
+                }
+            }
+            echo ']';
+        }
+        else{
+            echo ']';
+        }
+        echo '});';
+        echo '});';
     }
 }

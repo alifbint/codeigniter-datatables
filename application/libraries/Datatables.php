@@ -2,7 +2,7 @@
 /*
 * =============================================
 * Datatables for Codeigniter 3.x
-* Version           : 1.0
+* Version           : 1.1
 * Modified By       : Alif Bintoro <alifbintoro77@gmail.com>
 *
 * Original Source   : Ignited Datatables
@@ -22,6 +22,7 @@ class Datatables {
     protected $where = array();
     protected $group_by = null;
     protected $queryCount;
+    protected $last_query = array();
 
     public function __construct()
     {
@@ -185,12 +186,23 @@ class Datatables {
         if($this->CI->input->post('length',true) != -1)
             $this->CI->db->limit($this->CI->input->post('length',true), $this->CI->input->post('start',true));
         
-        return $this->CI->db->get()->result_array();
+        $result = $this->CI->db->get()->result_array();
+        $this->last_query['main'] = $this->CI->db->last_query();
+
+        return $result;
     }
  
     public function count_total()
     {
-        return $this->CI->db->query($this->queryCount)->row_array();
+        $result = $this->CI->db->query($this->queryCount)->row_array();
+        $this->last_query['count'] = $this->CI->db->last_query();
+
+        return $result;
+    }
+
+    public function last_query()
+    {
+        return $this->last_query;
     }
 
     public function generate($raw = false)

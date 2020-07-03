@@ -1,5 +1,5 @@
 
-# Datatable Library for CodeIgniter 3.x
+# Datatables Library for CodeIgniter 3.x
 
 ```
 Version : 1.1

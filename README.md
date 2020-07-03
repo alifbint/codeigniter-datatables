@@ -11,8 +11,9 @@ Created By : Philip Sturgeon <email@philsturgeon.co.uk>
 
 ## Usage
 ### Requirements
-1. PHP >= 5.6
-2. CodeIgniter 3.x
+. PHP >= 5.6
+. CodeIgniter 3.x
+. Datatables >= 1.10.19
 
 ### Instalation
 To install the library, copy the libraries/Datatables.php file into your application/libraries folder.

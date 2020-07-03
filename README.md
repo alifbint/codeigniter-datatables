@@ -15,7 +15,7 @@ Created By : Philip Sturgeon <email@philsturgeon.co.uk>
 2. CodeIgniter 3.x
 
 ### Instalation
-To install the library, copy the libraries/datatables.php file into your application/libraries folder.
+To install the library, copy the libraries/Datatables.php file into your application/libraries folder.
 
-### Documentation
+## Documentation
 Soon :)

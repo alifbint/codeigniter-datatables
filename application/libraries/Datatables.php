@@ -23,11 +23,18 @@ class Datatables {
     protected $group_by = null;
     protected $queryCount;
     protected $last_query = array();
+    protected $baseDB;
 
-    public function __construct()
+    public function __construct($param = null)
     {
         $this->CI =& get_instance();
         $this->csrfEnable = $this->CI->config->item('csrf_protection');
+
+        if(!empty(@$param['db'])){
+            $this->baseDB = $param['db'];
+        }else{
+            $this->baseDB = $this->CI->db;
+        }
     }
 
     protected function balanceChars($str, $open, $close)
@@ -125,58 +132,57 @@ class Datatables {
         $searchPost = $this->CI->input->post('search',true);
 
         if(!empty($this->column))
-            $this->CI->db->select($this->column);
+            $this->baseDB->select($this->column);
 
         if(!empty($this->joins))
             foreach($this->joins as $val)
-                $this->CI->db->join($val[0], $val[1], $val[2]);
+                $this->baseDB->join($val[0], $val[1], $val[2]);
 
         if(!empty($this->where)){
             foreach($this->where as $val){
                 if($val[2] == 'and'){
-                    $this->CI->db->where($val[0],$val[1]);
+                    $this->baseDB->where($val[0],$val[1]);
                 }
                 else{
-                    $this->CI->db->or_where($val[0], $val[1]);
+                    $this->baseDB->or_where($val[0], $val[1]);
                 }
             }
         }
 
         if(!empty($this->group_by))
-            $this->CI->db->group_by($this->group_by);
+            $this->baseDB->group_by($this->group_by);
 
-        $tmpQueryCount = str_replace($this->column, 'COUNT(1)', str_replace('`', '', $this->CI->db->get_compiled_select($this->table, false)));
+        $tmpQueryCount = preg_replace(sprintf('/%s/', $this->column), 'COUNT(1)', str_replace(['`', '"'], ['', ''], $this->baseDB->get_compiled_select($this->table, false)));
 
         if($searchPost['value']){
             $i = 0;
             foreach ($this->column_search as $item){
                 if($i===0){
-                    $this->CI->db->group_start();
-                    $this->CI->db->like($item, $searchPost['value']);
+                    $this->baseDB->group_start();
+                    $this->baseDB->like($item, $searchPost['value']);
                 }
                 else{
-                    $this->CI->db->or_like($item, $searchPost['value']);
+                    $this->baseDB->or_like($item, $searchPost['value']);
                 }
 
                 if(count($this->column_search) - 1 == $i)
-                    $this->CI->db->group_end();
+                    $this->baseDB->group_end();
 
                 $i++;
             }
 
-            $this->queryCount = str_replace($this->column, '('.$tmpQueryCount.') as total_all, COUNT(1) as total_filtered', str_replace('`', '', $this->CI->db->get_compiled_select('', false)));
+            $this->queryCount = preg_replace(sprintf('/%s/', $this->column), '('.$tmpQueryCount.') as total_all, COUNT(1) as total_filtered', str_replace(['`', '"'], ['', ''], $this->baseDB->get_compiled_select('', false)));
         }
         else{
             $this->queryCount = "SELECT COUNT(1) total_all, COUNT(1) total_filtered ".substr($tmpQueryCount, 16);
         }
-
          
         if(isset($_POST['order'])){
-            $this->CI->db->order_by($this->column_search[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
+            $this->baseDB->order_by($this->column_search[$_POST['order']['0']['column']], $_POST['order']['0']['dir']);
         } 
         else if(!empty($this->order)){
             foreach($this->order as $key => $val)
-                $this->CI->db->order_by($key, $val);
+                $this->baseDB->order_by($key, $val);
         }
     }
  
@@ -184,18 +190,18 @@ class Datatables {
     {
         $this->_get_datatables_query();
         if($this->CI->input->post('length',true) != -1)
-            $this->CI->db->limit($this->CI->input->post('length',true), $this->CI->input->post('start',true));
+            $this->baseDB->limit($this->CI->input->post('length',true), $this->CI->input->post('start',true));
         
-        $result = $this->CI->db->get()->result_array();
-        $this->last_query['main'] = $this->CI->db->last_query();
+        $result = $this->baseDB->get()->result_array();
+        $this->last_query['main'] = $this->baseDB->last_query();
 
         return $result;
     }
  
     public function count_total()
     {
-        $result = $this->CI->db->query($this->queryCount)->row_array();
-        $this->last_query['count'] = $this->CI->db->last_query();
+        $result = $this->baseDB->query($this->queryCount)->row_array();
+        $this->last_query['count'] = $this->baseDB->last_query();
 
         return $result;
     }
